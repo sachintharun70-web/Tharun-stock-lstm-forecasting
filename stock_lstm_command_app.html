@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>stock-lstm — command deck</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-base:#0A0E10;
+    --bg-panel:#12181B;
+    --bg-panel-2:#161D20;
+    --border:#212B2F;
+    --border-soft:#1A2226;
+    --text-primary:#E6EDEF;
+    --text-muted:#7C8A8F;
+    --text-dim:#56636A;
+    --accent:#2BD97C;
+    --accent-dim:#1C8F54;
+    --amber:#FFB454;
+    --red:#FF6B6B;
+    --mono:'JetBrains Mono', monospace;
+    --display:'Space Grotesk', sans-serif;
+    --body:'Inter', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg-base);
+    color:var(--text-primary);
+    font-family:var(--body);
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{ background:var(--accent-dim); color:#fff; }
+
+  a{ color:inherit; }
+
+  /* ---------- Ticker ---------- */
+  .ticker-wrap{
+    border-bottom:1px solid var(--border);
+    background:#0D1214;
+    overflow:hidden;
+    white-space:nowrap;
+    position:sticky;
+    top:0;
+    z-index:50;
+  }
+  .ticker-track{
+    display:inline-flex;
+    align-items:center;
+    gap:2.5rem;
+    padding:0.55rem 0;
+    animation: scroll-left 38s linear infinite;
+    font-family:var(--mono);
+    font-size:0.78rem;
+    letter-spacing:0.02em;
+  }
+  .ticker-wrap:hover .ticker-track{ animation-play-state: paused; }
+  @keyframes scroll-left{
+    from{ transform:translateX(0); }
+    to{ transform:translateX(-50%); }
+  }
+  .tick{ color:var(--text-muted); padding-left:2.5rem; }
+  .tick b{ color:var(--text-primary); font-weight:600; margin-right:0.4rem;}
+  .tick .up{ color:var(--accent); }
+  .tick .down{ color:var(--red); }
+  .tick .neutral{ color:var(--amber); }
+
+  /* ---------- Layout ---------- */
+  .shell{
+    display:grid;
+    grid-template-columns: 260px 1fr;
+    max-width:1180px;
+    margin:0 auto;
+  }
+  @media (max-width: 880px){
+    .shell{ grid-template-columns: 1fr; }
+    .sidebar{ display:none; }
+  }
+
+  /* ---------- Sidebar ---------- */
+  .sidebar{
+    position:sticky;
+    top:41px;
+    align-self:start;
+    height:calc(100vh - 41px);
+    padding:2rem 1.25rem 2rem 0;
+    overflow-y:auto;
+  }
+  .brand{
+    font-family:var(--display);
+    font-weight:700;
+    font-size:1.05rem;
+    color:var(--text-primary);
+    padding:0 0.5rem 1.4rem 0.5rem;
+    display:flex;
+    align-items:baseline;
+    gap:0.45rem;
+  }
+  .brand .dot{ color:var(--accent); }
+  .brand .sub{
+    font-family:var(--mono);
+    font-size:0.65rem;
+    color:var(--text-dim);
+    font-weight:400;
+    display:block;
+    padding:0 0.5rem;
+    margin-top:-1.1rem;
+    margin-bottom:1.4rem;
+  }
+  .navlist{ list-style:none; margin:0; padding:0; }
+  .navlist a{
+    display:flex;
+    align-items:center;
+    gap:0.6rem;
+    text-decoration:none;
+    font-size:0.86rem;
+    color:var(--text-muted);
+    padding:0.5rem 0.5rem;
+    border-radius:6px;
+    font-weight:500;
+    transition:background 0.15s, color 0.15s;
+  }
+  .navlist a:hover{ background:var(--bg-panel); color:var(--text-primary); }
+  .navlist a.active{ background:var(--bg-panel-2); color:var(--accent); }
+  .navlist .num{
+    font-family:var(--mono);
+    font-size:0.72rem;
+    color:var(--text-dim);
+    width:1.4rem;
+  }
+  .navlist a.active .num{ color:var(--accent); }
+
+  /* ---------- Main ---------- */
+  main{ padding:2.5rem 1.5rem 6rem 1.75rem; min-width:0; }
+
+  .page-head{ margin-bottom:2.6rem; }
+  .page-head h1{
+    font-family:var(--display);
+    font-size:2rem;
+    margin:0 0 0.6rem 0;
+    letter-spacing:-0.01em;
+  }
+  .page-head p{
+    color:var(--text-muted);
+    max-width:54ch;
+    line-height:1.55;
+    margin:0;
+    font-size:0.95rem;
+  }
+  .page-head .crumb{
+    font-family:var(--mono);
+    color:var(--text-dim);
+    font-size:0.72rem;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    margin-bottom:0.7rem;
+  }
+
+  section.stage{
+    margin-bottom:3.2rem;
+    scroll-margin-top:60px;
+  }
+  .stage-head{
+    display:flex;
+    align-items:baseline;
+    gap:0.85rem;
+    margin-bottom:0.4rem;
+  }
+  .stage-num{
+    font-family:var(--mono);
+    color:var(--accent);
+    font-size:0.85rem;
+    border:1px solid var(--border);
+    background:var(--bg-panel);
+    border-radius:5px;
+    padding:0.1rem 0.45rem;
+  }
+  .stage-head h2{
+    font-family:var(--display);
+    font-size:1.18rem;
+    margin:0;
+    font-weight:600;
+  }
+  .stage-desc{
+    color:var(--text-muted);
+    font-size:0.88rem;
+    line-height:1.6;
+    margin:0.5rem 0 1.1rem 0;
+    max-width:62ch;
+  }
+
+  /* ---------- Command card ---------- */
+  .cmd-card{
+    background:var(--bg-panel);
+    border:1px solid var(--border);
+    border-radius:10px;
+    margin-bottom:0.9rem;
+    overflow:hidden;
+  }
+  .cmd-card-label{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:0.65rem 0.9rem 0.5rem 0.9rem;
+  }
+  .cmd-card-label span{
+    font-size:0.78rem;
+    color:var(--text-muted);
+    font-weight:500;
+  }
+  .cmd-body{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:0.75rem;
+    padding:0 0.9rem 0.9rem 0.9rem;
+  }
+  .cmd-pre{
+    font-family:var(--mono);
+    font-size:0.84rem;
+    line-height:1.65;
+    color:var(--text-primary);
+    margin:0;
+    white-space:pre-wrap;
+    word-break:break-word;
+    flex:1;
+  }
+  .cmd-pre .prompt{ color:var(--accent); user-select:none; }
+  .cmd-pre .flag{ color:var(--amber); }
+  .cmd-pre .comment{ color:var(--text-dim); }
+
+  .copy-btn{
+    flex-shrink:0;
+    background:var(--bg-panel-2);
+    border:1px solid var(--border-soft);
+    color:var(--text-muted);
+    border-radius:6px;
+    padding:0.4rem 0.6rem;
+    cursor:pointer;
+    font-family:var(--body);
+    font-size:0.74rem;
+    font-weight:500;
+    display:flex;
+    align-items:center;
+    gap:0.35rem;
+    transition:border-color 0.15s, color 0.15s;
+  }
+  .copy-btn:hover{ border-color:var(--accent-dim); color:var(--text-primary); }
+  .copy-btn svg{ width:13px; height:13px; }
+  .copy-btn.copied{ color:var(--accent); border-color:var(--accent-dim); }
+
+  /* ---------- Flag table ---------- */
+  .flagtable{
+    width:100%;
+    border-collapse:collapse;
+    font-size:0.84rem;
+    margin:0.9rem 0 1.3rem 0;
+  }
+  .flagtable th{
+    text-align:left;
+    color:var(--text-dim);
+    font-family:var(--mono);
+    font-size:0.7rem;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    border-bottom:1px solid var(--border);
+    padding:0 0.6rem 0.5rem 0.6rem;
+    font-weight:500;
+  }
+  .flagtable td{
+    padding:0.55rem 0.6rem;
+    border-bottom:1px solid var(--border-soft);
+    color:var(--text-muted);
+    vertical-align:top;
+  }
+  .flagtable td:first-child{
+    font-family:var(--mono);
+    color:var(--amber);
+    white-space:nowrap;
+  }
+  .flagtable td:nth-child(2){
+    font-family:var(--mono);
+    color:var(--text-primary);
+    white-space:nowrap;
+  }
+  .flagtable tr:last-child td{ border-bottom:none; }
+
+  /* ---------- Tree ---------- */
+  .tree{
+    font-family:var(--mono);
+    font-size:0.82rem;
+    line-height:1.85;
+    background:var(--bg-panel);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:1.1rem 1.3rem;
+    color:var(--text-muted);
+    overflow-x:auto;
+  }
+  .tree .dir{ color:var(--text-primary); font-weight:600; }
+  .tree .new{ color:var(--accent); }
+  .tree .py{ color:#8AB4F8; }
+  .tree .note{ color:var(--text-dim); }
+
+  /* ---------- Callout ---------- */
+  .callout{
+    border-left:3px solid var(--amber);
+    background:rgba(255,180,84,0.06);
+    padding:0.8rem 1rem;
+    border-radius:0 8px 8px 0;
+    font-size:0.85rem;
+    color:var(--text-muted);
+    line-height:1.6;
+    margin:0.9rem 0 1.3rem 0;
+  }
+  .callout b{ color:var(--amber); font-weight:600; }
+  .callout.green{ border-left-color:var(--accent); background:rgba(43,217,124,0.06); }
+  .callout.green b{ color:var(--accent); }
+
+  footer{
+    border-top:1px solid var(--border);
+    padding:1.6rem 1.75rem;
+    font-family:var(--mono);
+    font-size:0.72rem;
+    color:var(--text-dim);
+    display:flex;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:0.5rem;
+  }
+</style>
+</head>
+<body>
+
+<div class="ticker-wrap" aria-hidden="true">
+  <div class="ticker-track" id="tickerTrack"></div>
+</div>
+
+<div class="shell">
+
+  <nav class="sidebar">
+    <div class="brand"><span class="dot">$</span> stock-lstm</div>
+    <span class="sub">command deck v1.0</span>
+    <ul class="navlist" id="navlist">
+      <li><a href="#setup"><span class="num">01</span>Setup</a></li>
+      <li><a href="#run"><span class="num">02</span>Run pipeline</a></li>
+      <li><a href="#customize"><span class="num">03</span>Customize</a></li>
+      <li><a href="#real-data"><span class="num">04</span>Real data</a></li>
+      <li><a href="#structure"><span class="num">05</span>Project tree</a></li>
+      <li><a href="#outputs"><span class="num">06</span>Outputs</a></li>
+    </ul>
+  </nav>
+
+  <main>
+    <div class="page-head">
+      <div class="crumb">tharun velan charan / stock_lstm_forecasting</div>
+      <h1>Command deck</h1>
+      <p>Every command you need to set up, run, and customize the LSTM stock-forecasting pipeline — copy and paste straight into your terminal, in order.</p>
+    </div>
+
+    <!-- 01 SETUP -->
+    <section class="stage" id="setup">
+      <div class="stage-head"><span class="stage-num">01</span><h2>Setup</h2></div>
+      <p class="stage-desc">Unzip the project, move into it, and install the four required packages. No GPU, no TensorFlow, no API keys.</p>
+
+      <div class="cmd-card">
+        <div class="cmd-card-label"><span>Unzip and enter the project</span></div>
+        <div class="cmd-body">
+          <pre class="cmd-pre"><span class="prompt">$</span> unzip stock_lstm_forecasting.zip
+<span class="prompt">$</span> cd stock_lstm_forecasting</pre>
+          <button class="copy-btn" data-copy="unzip stock_lstm_forecasting.zip
+cd stock_lstm_forecasting">copy</button>
+        </div>
+      </div>
+
+      <div class="cmd-card">
+        <div class="cmd-card-label"><span>Install dependencies</span></div>
+        <div class="cmd-body">
+          <pre class="cmd-pre"><span class="prompt">$</span> pip install -r requirements.txt</pre>
+          <button class="copy-btn" data-copy="pip install -r requirements.txt">copy</button>
+        </div>
+      </div>
+
+      <div class="callout green"><b>No internet needed.</b> The repo ships with a bundled sample dataset (<code>data/sample_stock_data.csv</code>), so you can run everything offline.</div>
+    </section>
+
+    <!-- 02 RUN -->
+    <section class="stage" id="run">
+      <div class="stage-head"><span class="stage-num">02</span><h2>Run the pipeline</h2></div>
+      <p class="stage-desc">One command runs preprocessing, training, evaluation, and plotting end to end with sensible defaults (60-day window, 32 hidden units, 60 epochs).</p>
+
+      <div class="cmd-card">
+        <div class="cmd-card-label"><span>Train + evaluate with defaults</span></div>
+        <div class="cmd-body">
+          <pre class="cmd-pre"><span class="prompt">$</span> python main.py</pre>
+          <button class="copy-btn" data-copy="python main.py">copy</button>
+        </div>
+      </div>
+
+      <div class="callout">Takes roughly <b>20–30 seconds</b> on a laptop CPU. Watch for the epoch loss printout, then the final MAE / MSE / RMSE / MAPE summary.</div>
+
+      <div class="cmd-card">
+        <div class="cmd-card-label"><span>Regenerate the synthetic dataset (optional)</span></div>
+        <div class="cmd-body">
+          <pre class="cmd-pre"><span class="prompt">$</span> python data/generate_synthetic_data.py</pre>
+          <button class="copy-btn" data-copy="python data/generate_synthetic_data.py">copy</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 03 CUSTOMIZE -->
+    <section class="stage" id="customize">
+      <div class="stage-head"><span class="stage-num">03</span><h2>Customize hyperparameters</h2></div>
+      <p class="stage-desc">Every stage of the pipeline is controlled with CLI flags on <code>main.py</code> — no code edits required.</p>
+
+      <table class="flagtable">
+        <tr><th>flag</th><th>default</th><th>what it controls</th></tr>
+        <tr><td>--csv</td><td>data/sample_stock_data.csv</td><td>Input OHLCV CSV path</td></tr>
+        <tr><td>--window</td><td>60</td><td>Days of history per training sample</td></tr>
+        <tr><td>--hidden</td><td>32</td><td>LSTM hidden units</td></tr>
+        <tr><td>--epochs</td><td>60</td><td>Training epochs</td></tr>
+        <tr><td>--batch_size</td><td>32</td><td>Mini-batch size</td></tr>
+        <tr><td>--lr</td><td>0.005</td><td>Adam learning rate</td></tr>
+        <tr><td>--test_ratio</td><td>0.2</td><td>Fraction of data held out (chronological)</td></tr>
+        <tr><td>--outdir</td><td>outputs</td><td>Where plots / metrics / weights are saved</td></tr>
+      </table>
+
+      <div class="cmd-card">
+        <div class="cmd-card-label"><span>Bigger model, longer training</span></div>
+        <div class="cmd-body">
+          <pre class="cmd-pre"><span class="prompt">$</span> python main.py <span class="flag">--hidden 64</span> <span class="flag">--epochs 100</span> <span class="flag">--lr 0.003</span></pre>
+          <button class="copy-btn" data-copy="python main.py --hidden 64 --epochs 100 --lr 0.003">copy</button>
+        </div>
+      </div>
+
+      <div class="cmd-card">
+        <div class="cmd-card-label"><span>Shorter lookback window, smaller test split</span></div>
+        <div class="cmd-body">
+          <pre class="cmd-pre"><span class="prompt">$</span> python main.py <span class="flag">--window 30</span> <span class="flag">--test_ratio 0.15</span></pre>
+          <button class="copy-btn" data-copy="python main.py --window 30 --test_ratio 0.15">copy</button>
+        </div>
+      </div>
+
+      <div class="cmd-card">
+        <div class="cmd-card-label"><span>Save results to a separate folder</span></div>
+        <div class="cmd-body">
+          <pre class="cmd-pre"><span class="prompt">$</span> python main.py <span class="flag">--outdir</span> outputs_run2</pre>
+          <button class="copy-btn" data-copy="python main.py --outdir outputs_run2">copy</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 04 REAL DATA -->
+    <section class="stage" id="real-data">
+      <div class="stage-head"><span class="stage-num">04</span><h2>Swap in real market data</h2></div>
+      <p class="stage-desc">Optional — requires internet and the <code>yfinance</code> package (already in requirements.txt). Pulls real OHLCV history from Yahoo Finance for any ticker.</p>
+
+      <div class="cmd-card">
+        <div class="cmd-card-label"><span>Download real history for a ticker</span></div>
+        <div class="cmd-body">
+          <pre class="cmd-pre"><span class="prompt">$</span> python data/download_data.py <span class="flag">--ticker AAPL</span> <span class="flag">--start 2015-01-01</span> <span class="flag">--end 2025-01-01</span></pre>
+          <button class="copy-btn" data-copy="python data/download_data.py --ticker AAPL --start 2015-01-01 --end 2025-01-01">copy</button>
+        </div>
+      </div>
+
+      <div class="cmd-card">
+        <div class="cmd-card-label"><span>Train on the downloaded file</span></div>
+        <div class="cmd-body">
+          <pre class="cmd-pre"><span class="prompt">$</span> python main.py <span class="flag">--csv</span> data/stock_data.csv</pre>
+          <button class="copy-btn" data-copy="python main.py --csv data/stock_data.csv">copy</button>
+        </div>
+      </div>
+
+      <div class="cmd-card">
+        <div class="cmd-card-label"><span>Try a different ticker, e.g. Tesla</span></div>
+        <div class="cmd-body">
+          <pre class="cmd-pre"><span class="prompt">$</span> python data/download_data.py <span class="flag">--ticker TSLA</span> <span class="flag">--out</span> data/tsla.csv
+<span class="prompt">$</span> python main.py <span class="flag">--csv</span> data/tsla.csv</pre>
+          <button class="copy-btn" data-copy="python data/download_data.py --ticker TSLA --out data/tsla.csv
+python main.py --csv data/tsla.csv">copy</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 05 STRUCTURE -->
+    <section class="stage" id="structure">
+      <div class="stage-head"><span class="stage-num">05</span><h2>Project tree</h2></div>
+      <p class="stage-desc">Where everything lives, for reference while you run the commands above.</p>
+      <div class="tree">
+<span class="dir">stock_lstm_forecasting/</span>
+├── README.md
+├── requirements.txt
+├── <span class="py">main.py</span>                          <span class="note"># entry point — run this</span>
+├── <span class="dir">data/</span>
+│   ├── sample_stock_data.csv        <span class="note"># bundled, ready to use</span>
+│   ├── <span class="py">generate_synthetic_data.py</span>   <span class="note"># rebuilds the sample CSV</span>
+│   └── <span class="py">download_data.py</span>             <span class="note"># optional real-data fetch</span>
+├── <span class="dir">src/</span>
+│   ├── <span class="py">data_preprocessing.py</span>
+│   ├── <span class="py">lstm_model.py</span>                <span class="note"># from-scratch NumPy LSTM</span>
+│   └── <span class="py">evaluate.py</span>
+└── <span class="dir">outputs/</span>                        <span class="note"># generated on every run</span>
+    ├── <span class="dir">plots/</span>
+    ├── <span class="dir">metrics/</span>metrics.json
+    └── <span class="new">lstm_weights.npz</span></div>
+    </section>
+
+    <!-- 06 OUTPUTS -->
+    <section class="stage" id="outputs">
+      <div class="stage-head"><span class="stage-num">06</span><h2>Check your outputs</h2></div>
+      <p class="stage-desc">After any run, these commands open or print what got generated.</p>
+
+      <div class="cmd-card">
+        <div class="cmd-card-label"><span>Print the metrics file</span></div>
+        <div class="cmd-body">
+          <pre class="cmd-pre"><span class="prompt">$</span> cat outputs/metrics/metrics.json</pre>
+          <button class="copy-btn" data-copy="cat outputs/metrics/metrics.json">copy</button>
+        </div>
+      </div>
+
+      <div class="cmd-card">
+        <div class="cmd-card-label"><span>List generated plots</span></div>
+        <div class="cmd-body">
+          <pre class="cmd-pre"><span class="prompt">$</span> ls -la outputs/plots/</pre>
+          <button class="copy-btn" data-copy="ls -la outputs/plots/">copy</button>
+        </div>
+      </div>
+
+      <div class="cmd-card">
+        <div class="cmd-card-label"><span>Open the prediction chart (macOS / Linux)</span></div>
+        <div class="cmd-body">
+          <pre class="cmd-pre"><span class="prompt">$</span> open outputs/plots/predictions_vs_actual_test.png <span class="comment"># macOS</span>
+<span class="prompt">$</span> xdg-open outputs/plots/predictions_vs_actual_test.png <span class="comment"># Linux</span></pre>
+          <button class="copy-btn" data-copy="open outputs/plots/predictions_vs_actual_test.png">copy</button>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <span>stock_lstm_forecasting — command deck</span>
+      <span>numpy · pandas · scikit-learn · matplotlib</span>
+    </footer>
+  </main>
+</div>
+
+<script>
+  // Copy-to-clipboard
+  document.querySelectorAll('.copy-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const text = btn.getAttribute('data-copy');
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch (e) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+      const original = btn.innerHTML;
+      btn.classList.add('copied');
+      btn.textContent = 'copied';
+      setTimeout(() => {
+        btn.classList.remove('copied');
+        btn.textContent = 'copy';
+      }, 1400);
+    });
+  });
+
+  // Active nav highlighting on scroll
+  const sections = document.querySelectorAll('section.stage');
+  const navLinks = document.querySelectorAll('#navlist a');
+  const setActive = (id) => {
+    navLinks.forEach(l => l.classList.toggle('active', l.getAttribute('href') === '#' + id));
+  };
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) setActive(entry.target.id);
+    });
+  }, { rootMargin: '-15% 0px -70% 0px', threshold: 0 });
+  sections.forEach(s => observer.observe(s));
+  setActive('setup');
+
+  // Ticker content — built from this project's actual run results
+  const tickItems = [
+    { label: 'MAE', value: '$2.52', dir: 'down' },
+    { label: 'RMSE', value: '$3.18', dir: 'down' },
+    { label: 'MSE', value: '10.09', dir: 'down' },
+    { label: 'MAPE', value: '1.66%', dir: 'down' },
+    { label: 'EPOCHS', value: '60', dir: 'neutral' },
+    { label: 'WINDOW', value: '60d', dir: 'neutral' },
+    { label: 'HIDDEN', value: '32u', dir: 'neutral' },
+    { label: 'GRAD-CHECK', value: 'PASS', dir: 'up' },
+    { label: 'DEPS', value: 'numpy only', dir: 'up' },
+  ];
+  const arrow = d => d === 'up' ? '▲' : d === 'down' ? '▼' : '●';
+  const renderTick = (item) =>
+    `<span class="tick"><b>${item.label}</b><span class="${item.dir}">${arrow(item.dir)} ${item.value}</span></span>`;
+  const track = document.getElementById('tickerTrack');
+  const html = tickItems.map(renderTick).join('');
+  track.innerHTML = html + html; // duplicate for seamless loop
+</script>
+
+</body>
+</html>
